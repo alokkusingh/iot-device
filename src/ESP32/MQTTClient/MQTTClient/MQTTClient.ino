@@ -93,6 +93,7 @@ void connectToWiFi() {
     delay(500);
     Serial.print(".");
   }
+  Serial.println("" + WiFi.localIP().toString());
   Serial.println("\nConnected to WiFi");
 }
 
@@ -101,13 +102,13 @@ void connectToMQTT() {
     Serial.printf("Connecting to MQTT Broker as %s...\n", clientId);
     
     String str = "{\"deviceId\":\"";
-    String willPayload = str + clientId + "\", \"status\":\"offline\", \"lastSeen\":\"\", \"ipAddress\":\"" + WiFi.localIP() + "\"" + "}";
+    String willPayload = str + clientId + "\", \"status\":\"offline\", \"lastSeen\":\"\", \"ipAddress\":\"" + WiFi.localIP().toString() + "\"" + "}";
     
     if (mqtt_client.connect(clientId, statusTopic, 0, true, willPayload.c_str())) {
       Serial.println("Connected to MQTT broker");
       mqtt_client.subscribe(commandTopic);
 
-      String connectedStatusPayload = str + clientId + "\", \"status\":\"online\", \"lastSeen\":\"\", \"ipAddress\":\"" + WiFi.localIP() + "\"" + "}";
+      String connectedStatusPayload = str + clientId + "\", \"status\":\"online\", \"lastSeen\":\"\", \"ipAddress\":\"" + WiFi.localIP().toString() + "\"" + "}";
 
       mqtt_client.publish(statusTopic, connectedStatusPayload.c_str(), false);  // Publish message upon connection
     } else {
