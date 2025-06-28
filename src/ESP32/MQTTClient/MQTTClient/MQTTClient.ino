@@ -10,6 +10,12 @@
 
 #include "DHT.h"
 
+#include "time.h"
+
+const char *ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 0;
+const int daylightOffset_sec = 0;
+
 #define DPIN 4       //Pin to connect DHT sensor (GPIO number)
 #define DTYPE DHT11  //Define DHT11 or DHT22 sensor type
 
@@ -35,6 +41,8 @@ void connectToMQTT();
 
 void mqttCallback(char *topic, byte *payload, unsigned int length);
 
+unsigned long previousMillis = 0;
+const long interval = 60000 * 5;  // Publish interval in milliseconds (e.g., every 5 minutes)
 
 void setup() {
   Serial.begin(115200);
@@ -60,30 +68,47 @@ void loop() {
   }
   mqtt_client.loop();
 
-  float tc = dht.readTemperature();      //Read temperature in C
-  float tf = dht.readTemperature(true);  //Read temperature in F
-  float hu = dht.readHumidity();
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
 
-  Serial.print("Temp C: ");
-  Serial.print(tc);
-  Serial.print("\n");
+    float tc = dht.readTemperature();      //Read temperature in C
+    float tf = dht.readTemperature(true);  //Read temperature in F
+    float hu = dht.readHumidity();
 
-  Serial.print("Temp F: ");
-  Serial.print(tf);
-  Serial.print("\n");
+    Serial.print("Temp C: ");
+    Serial.print(tc);
+    Serial.print("\n");
 
-  Serial.print("Humid: ");
-  Serial.print(dht.readHumidity());
-  Serial.print("%\n");
+    Serial.print("Temp F: ");
+    Serial.print(tf);
+    Serial.print("\n");
 
-  String str = "{\"deviceId\":\"";
-  String temperaturePayload = str + clientId + "\", \"temperature\":" + tc + ", \"unit\":\"Celsius\"}";
-  mqtt_client.publish(temperatureTopic, temperaturePayload.c_str());  // Publish message upon connection
+    Serial.print("Humid: ");
+    Serial.print(dht.readHumidity());
+    Serial.print("%\n");
 
-  String humidityPayload = str + clientId + "\", \"humidity\":" + hu + ", \"unit\":\"%\"}";
-  mqtt_client.publish(humidityTopic, humidityPayload.c_str());  // Publish message upon connection
+    String str = "{\"deviceId\":\"";
+    String temperaturePayload = str + clientId + "\", \"epochTime\":" + getEpochTime() + ", \"temperature\":" + tc + ", \"unit\":\"Celsius\"}";
+    mqtt_client.publish(temperatureTopic, temperaturePayload.c_str());  // Publish message upon connection
 
-  delay(60000 * 5);
+    String humidityPayload = str + clientId + "\", \"epochTime\":" + getEpochTime() + ", \"humidity\":" + hu + ", \"unit\":\"%\"}";
+    mqtt_client.publish(humidityTopic, humidityPayload.c_str());  // Publish message upon connection
+  }
+}
+
+void printLocalTime() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return;
+  }
+  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+}
+
+unsigned long getEpochTime() {
+  time_t epochTime = time(nullptr);
+  return epochTime;
 }
 
 void connectToWiFi() {
@@ -94,21 +119,26 @@ void connectToWiFi() {
     Serial.print(".");
   }
   Serial.println("" + WiFi.localIP().toString());
-  Serial.println("\nConnected to WiFi");
+  Serial.println("Connected to WiFi");
+
+  // Init and get the time
+  Serial.println("Connecting to NTP server");
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  printLocalTime();
 }
 
 void connectToMQTT() {
   while (!mqtt_client.connected()) {
     Serial.printf("Connecting to MQTT Broker as %s...\n", clientId);
-    
+
     String str = "{\"deviceId\":\"";
-    String willPayload = str + clientId + "\", \"status\":\"offline\", \"lastSeen\":\"\", \"ipAddress\":\"" + WiFi.localIP().toString() + "\"" + "}";
-    
+    String willPayload = str + clientId + "\", \"status\":\"offline\", \"epochTime\":" + getEpochTime() + ", \"ipAddress\":\"" + WiFi.localIP().toString() + "\"" + "}";
+
     if (mqtt_client.connect(clientId, statusTopic, 0, true, willPayload.c_str())) {
       Serial.println("Connected to MQTT broker");
       mqtt_client.subscribe(commandTopic);
 
-      String connectedStatusPayload = str + clientId + "\", \"status\":\"online\", \"lastSeen\":\"\", \"ipAddress\":\"" + WiFi.localIP().toString() + "\"" + "}";
+      String connectedStatusPayload = str + clientId + "\", \"status\":\"online\", \"epochTime\":" + getEpochTime() + ", \"ipAddress\":\"" + WiFi.localIP().toString() + "\"" + "}";
 
       mqtt_client.publish(statusTopic, connectedStatusPayload.c_str(), false);  // Publish message upon connection
     } else {
