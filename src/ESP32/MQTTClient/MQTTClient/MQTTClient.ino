@@ -5,28 +5,13 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
-
 #include "../../../../secret/secret.h"
-
 #include "DHT.h"
-
 #include "time.h"
 
-const char *ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 0;
-const int daylightOffset_sec = 0;
 
 #define DPIN 4       //Pin to connect DHT sensor (GPIO number)
 #define DTYPE DHT11  //Define DHT11 or DHT22 sensor type
-
-time_t now;
-unsigned long lastMillis = 0;
-
-const char *clientId = "esp32-general-purpose-1";
-const char *statusTopic = "home/alok/status/esp32-general-purpose-1";
-const char *humidityTopic = "home/alok/telemetry/humidity/esp32-general-purpose-1";
-const char *temperatureTopic = "home/alok/telemetry/temperature/esp32-general-purpose-1";
-const char *commandTopic = "home/alok/command/esp32-general-purpose-1";
 
 // WiFi and MQTT client initialization
 WiFiClientSecure esp_client;
@@ -36,13 +21,21 @@ DHT dht(DPIN, DTYPE);
 
 // Function Declarations
 void connectToWiFi();
-
 void connectToMQTT();
-
 void mqttCallback(char *topic, byte *payload, unsigned int length);
 
+const char *clientId = "esp32-general-purpose-1";
+const char *statusTopic = "home/alok/status/esp32-general-purpose-1";
+const char *humidityTopic = "home/alok/telemetry/humidity/esp32-general-purpose-1";
+const char *temperatureTopic = "home/alok/telemetry/temperature/esp32-general-purpose-1";
+const char *commandTopic = "home/alok/command/esp32-general-purpose-1";
+
+const char *ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 0;
+const int daylightOffset_sec = 0;
+
 unsigned long previousMillis = 0;
-const long interval = 60000 * 5;  // Publish interval in milliseconds (e.g., every 5 minutes)
+const unsigned long interval = 60000 * 60;  // Publish interval in milliseconds (e.g., every 1 Hour)
 
 void setup() {
   Serial.begin(115200);
