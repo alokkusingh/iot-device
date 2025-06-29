@@ -9,6 +9,8 @@
 #include "DHT.h"
 #include "time.h"
 
+#include <ArduinoJson.h>
+
 
 #define DPIN 4       //Pin to connect DHT sensor (GPIO number)
 #define DTYPE DHT11  //Define DHT11 or DHT22 sensor type
@@ -28,7 +30,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length);
 void senseAndPublishDHT11Telemetry();
 unsigned long getEpochTime();
 
-const char *clientId = "esp32-general-purpose-1";
+const char *deviceId = "esp32-general-purpose-1";
 const char *statusTopic = "home/alok/status/esp32-general-purpose-1";
 const char *humidityTopic = "home/alok/telemetry/humidity/esp32-general-purpose-1";
 const char *temperatureTopic = "home/alok/telemetry/temperature/esp32-general-purpose-1";
@@ -39,7 +41,14 @@ const long gmtOffset_sec = 0;
 const int daylightOffset_sec = 0;
 
 unsigned long previousMillis = 0;
-const unsigned long interval = 60000 * 60;  // Publish interval in milliseconds (e.g., every 1 Hour)
+const unsigned long interval = 60000 * 30;  // Publish interval in milliseconds (e.g., every 1 Hour)
+
+const char *STATUS_OFFLINE = "offline";
+const char *STATUS_ONLINE = "online";
+const char *TAG_HUMIDITY = "humidity";
+const char *TAG_TEMPERATURE = "temperature";
+const char *UNIT_HUMIDITY = "%";
+const char *UNIT_TEMPERATURE = "Celsius";
 
 void setup() {
   Serial.begin(115200);
@@ -112,17 +121,16 @@ void configureMQTTClient() {
 
 void connectToMQTT() {
   while (!mqttClient.connected()) {
-    Serial.printf("Connecting to MQTT Broker as %s...\n", clientId);
+    Serial.printf("Connecting to MQTT Broker as %s...\n", deviceId);
 
-    String str = "{\"deviceId\":\"";
-    String willPayload = str + clientId + "\", \"status\":\"offline\", \"epochTime\":" + getEpochTime() + ", \"ipAddress\":\"" + WiFi.localIP().toString() + "\"" + "}";
+    char statusPayload[128];
+    getStatusPayloadJson(STATUS_OFFLINE, statusPayload, sizeof(statusPayload));
 
-    if (mqttClient.connect(clientId, statusTopic, 0, true, willPayload.c_str())) {
+    if (mqttClient.connect(deviceId, statusTopic, 0, true, statusPayload)) {
       Serial.println("Connected to MQTT broker");
 
-      String connectedStatusPayload = str + clientId + "\", \"status\":\"online\", \"epochTime\":" + getEpochTime() + ", \"ipAddress\":\"" + WiFi.localIP().toString() + "\"" + "}";
-
-      mqttClient.publish(statusTopic, connectedStatusPayload.c_str(), false);  // Publish message upon connection
+      getStatusPayloadJson(STATUS_ONLINE, statusPayload, sizeof(statusPayload));
+      mqttClient.publish(statusTopic, statusPayload, false);  // Publish message upon connection
     } else {
       Serial.print("Failed to connect to MQTT broker, rc=");
       Serial.print(mqttClient.state());
@@ -159,10 +167,38 @@ void senseAndPublishDHT11Telemetry() {
   Serial.print(dht.readHumidity());
   Serial.print("%\n");
 
-  String str = "{\"deviceId\":\"";
-  String temperaturePayload = str + clientId + "\", \"epochTime\":" + getEpochTime() + ", \"temperature\":" + tc + ", \"unit\":\"Celsius\"}";
-  mqttClient.publish(temperatureTopic, temperaturePayload.c_str());  // Publish message upon connection
+  char telemetryPayloadJson[128];
+  getTelemetryPayloadJson(TAG_TEMPERATURE, tc, UNIT_TEMPERATURE, telemetryPayloadJson, sizeof(telemetryPayloadJson));
+  mqttClient.publish(temperatureTopic, telemetryPayloadJson);  // Publish message upon connection
 
-  String humidityPayload = str + clientId + "\", \"epochTime\":" + getEpochTime() + ", \"humidity\":" + hu + ", \"unit\":\"%\"}";
-  mqttClient.publish(humidityTopic, humidityPayload.c_str());  // Publish message upon connection
+  getTelemetryPayloadJson(TAG_HUMIDITY, hu, UNIT_HUMIDITY, telemetryPayloadJson, sizeof(telemetryPayloadJson));
+  mqttClient.publish(humidityTopic, telemetryPayloadJson);  // Publish message upon connection
+}
+
+void getStatusPayloadJson(const char *status, char *output, size_t size) {
+
+  JsonDocument doc;
+
+  doc["deviceId"] = deviceId;
+  doc["status"] = status;
+  doc["epochTime"] = getEpochTime();
+  doc["ipAddress"] = WiFi.localIP().toString();
+
+  doc.shrinkToFit();  // optional
+
+  serializeJsonPretty(doc, output, size);
+}
+
+void getTelemetryPayloadJson(const char *tag, double value, const char *unit, char *output, size_t size) {
+
+  JsonDocument doc;
+
+  doc["deviceId"] = deviceId;
+  doc["epochTime"] = getEpochTime();
+  doc[tag] = value;
+  doc["unit"] = unit;
+
+  doc.shrinkToFit();  // optional
+
+  serializeJsonPretty(doc, output, size);
 }

@@ -5,6 +5,7 @@ MQTT Secure Client
 1. PubSubClient 2.8 (by Nick O'Leary)
 2. WiFiClientSecure 
 3. DHT Sensor Library 1.4.6 (by Adafruit)
+4. ArduinoJson 7.4.2 by Benoit Blanchon
 ## Topics
 ### Status Topics
 - `home/alok/status/<<deviceId>>`
