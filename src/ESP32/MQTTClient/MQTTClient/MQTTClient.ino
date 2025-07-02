@@ -186,7 +186,8 @@ void getStatusPayloadJson(const char *status, char *output, size_t size) {
 
   doc.shrinkToFit();  // optional
 
-  serializeJsonPretty(doc, output, size);
+  size_t bytes = serializeJsonPretty(doc, output, size);
+  Serial.println("Status Payload size: " + String(bytes));
 }
 
 void getTelemetryPayloadJson(const char *tag, double value, const char *unit, char *output, size_t size) {
@@ -200,5 +201,6 @@ void getTelemetryPayloadJson(const char *tag, double value, const char *unit, ch
 
   doc.shrinkToFit();  // optional
 
-  serializeJsonPretty(doc, output, size);
+  size_t bytes = serializeJsonPretty(doc, output, size);
+  Serial.println("Telemetry Payload size: " + String(bytes));
 }

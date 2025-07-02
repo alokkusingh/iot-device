@@ -16,3 +16,11 @@ MQTT Secure Client
 - `home/alok/command/<<deviceId>>`
 ## Sensors
 1. DHT11 Temperature and Humidity Sensor
+## References
+1. https://products.espressif.com/#/product-selector?language=en&names=ESP32-D0WD-V3
+2. https://lastminuteengineers.com/esp32-wroom-32-pinout-reference/
+2. https://www.arduino.cc/en/Reference/WiFiClientSecure
+3. https://arduinojson.org
+4. https://randomnerdtutorials.com/esp32-mqtt-publish-subscribe-arduino-ide/
+5. https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf
+6. 
